@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Bloc-notes avec table des matières">
+    <meta name="theme-color" content="#4CAF50">
+    <title>Bloc-Notes</title>
+    <link rel="manifest" href="manifest.json">
+    <link rel="stylesheet" href="style.css">
+    <link rel="icon" type="image/png" href="icon-192.png">
+    <link rel="apple-touch-icon" href="icon-192.png">
+</head>
+<body>
+    <div class="app">
+        <!-- Overlay pour fermer la sidebar -->
+        <div class="sidebar-overlay" id="sidebarOverlay"></div>
+        
+        <!-- En-tête -->
+        <header class="header">
+            <button class="btn-menu" id="toggleSidebar">☰</button>
+            <span class="note-label">Note:</span>
+            <input type="text" id="sectionTitle" class="section-title-header" placeholder="Titre">
+            <span class="last-modified" id="lastModified"></span>
+        </header>
+
+        <!-- Barre latérale - Table des matières -->
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <h2>Table des matières</h2>
+                <button class="btn-close" id="closeSidebar">✕</button>
+            </div>
+            <button class="btn-new-section" id="newSectionBtn">+ Nouvelle note</button>
+            <button class="btn-export" id="exportBtn">📥 Exporter la sélection</button>
+            <button class="btn-import" id="importBtn">📤 Importer des notes</button>
+            <button class="btn-delete" id="deleteSectionBtn">🗑️ Supprimer la sélection</button>
+            <input type="file" id="importFileInput" accept=".json" style="display: none;">
+            <ul class="toc" id="tocList"></ul>
+        </aside>
+
+        <!-- Zone d'édition -->
+        <main class="editor-container">
+            <div class="toolbar">
+                <button class="btn-tool" id="boldBtn" title="Gras (Ctrl+B)"><strong>B</strong></button>
+                <button class="btn-tool" id="italicBtn" title="Italique (Ctrl+I)"><em>I</em></button>
+                <button class="btn-tool" id="underlineBtn" title="Souligné (Ctrl+U)"><u>U</u></button>
+                <button class="btn-tool" id="h1Btn" title="Titre 1">H1</button>
+                <button class="btn-tool" id="h2Btn" title="Titre 2">H2</button>
+                <button class="btn-tool" id="ulBtn" title="Liste">•</button>
+            </div>
+
+            <div class="editor" id="editor" contenteditable="true" spellcheck="true">
+            </div>
+        </main>
+    </div>
+
+    <script src="app.js"></script>
+    <script>
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('sw.js')
+                .then(() => console.log('Service Worker enregistré'))
+                .catch(err => console.log('Erreur Service Worker:', err));
+        }
+    </script>
+</body>
+</html>
