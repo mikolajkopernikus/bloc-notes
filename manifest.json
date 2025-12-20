@@ -2,10 +2,10 @@
   "name": "Bloc-Notes",
   "short_name": "Notes",
   "description": "Bloc-notes avec formatage et table des matières",
-  "start_url": "/",
+  "start_url": "/bloc-notes/",
   "display": "standalone",
   "background_color": "#ffffff",
-  "theme_color": "#4CAF50",
+  "theme_color": "#1a237e",
   "orientation": "portrait",
   "icons": [
     {
