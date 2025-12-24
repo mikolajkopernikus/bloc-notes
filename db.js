@@ -34,11 +34,40 @@ async function initDB() {
     });
 }
 
+// Vérifier le statut du stockage persistant
+async function checkPersistentStorage() {
+    if (navigator.storage && navigator.storage.persisted) {
+        const isPersisted = await navigator.storage.persisted();
+        console.log(`Statut actuel du stockage persistant: ${isPersisted ? 'accordé' : 'refusé'}`);
+        
+        // Afficher le statut visuellement
+        const statusEl = document.getElementById('storageStatus');
+        if (statusEl) {
+            if (isPersisted) {
+                statusEl.textContent = '🔒';
+                statusEl.title = 'Données protégées contre la suppression';
+                statusEl.style.color = '#4CAF50';
+            } else {
+                statusEl.textContent = '⚠️';
+                statusEl.title = 'ATTENTION: Données non protégées ! Exportez régulièrement.';
+                statusEl.style.color = '#ff9800';
+            }
+        }
+        
+        return isPersisted;
+    }
+    return false;
+}
+
 // Demander le stockage persistant
 async function requestPersistentStorage() {
     if (navigator.storage && navigator.storage.persist) {
         const isPersisted = await navigator.storage.persist();
-        console.log(`Stockage persistant: ${isPersisted ? 'accordé' : 'refusé'}`);
+        console.log(`Demande de stockage persistant: ${isPersisted ? 'accordé' : 'refusé'}`);
+        
+        // Vérifier le statut après la demande
+        await checkPersistentStorage();
+        
         return isPersisted;
     }
     return false;
