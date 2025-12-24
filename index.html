@@ -19,7 +19,10 @@
         <!-- En-tête -->
         <header class="header">
             <button class="btn-menu" id="toggleSidebar">☰</button>
-            <span class="note-label">Note:</span>
+            <div class="note-label-container">
+                <span class="note-label">Note:</span>
+                <span class="version-label">v0.2</span>
+            </div>
             <input type="text" id="sectionTitle" class="section-title-header" placeholder="Titre">
             <span class="last-modified" id="lastModified"></span>
         </header>
@@ -54,6 +57,7 @@
         </main>
     </div>
 
+    <script src="db.js"></script>
     <script src="app.js"></script>
     <script>
         if ('serviceWorker' in navigator) {

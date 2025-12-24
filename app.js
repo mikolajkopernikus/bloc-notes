@@ -4,8 +4,14 @@ let currentSectionId = null;
 let autoSaveTimer = null;
 
 // Charger les données au démarrage
-document.addEventListener('DOMContentLoaded', () => {
-    loadData();
+document.addEventListener('DOMContentLoaded', async () => {
+    // Initialiser IndexedDB et demander le stockage persistant
+    await initDB();
+    await requestPersistentStorage();
+    
+    // Charger les données (avec migration si nécessaire)
+    await loadData();
+    
     initializeEventListeners();
     
     // Créer une première section si vide
@@ -406,20 +412,25 @@ function updateLastModifiedDisplay(isoDate) {
 }
 
 // Sauvegarder les données
-function saveData() {
+async function saveData() {
     try {
-        localStorage.setItem('bloc-notes-sections', JSON.stringify(sections));
+        await saveAllSections(sections);
     } catch (e) {
         console.error('Erreur de sauvegarde:', e);
     }
 }
 
 // Charger les données
-function loadData() {
+async function loadData() {
     try {
-        const saved = localStorage.getItem('bloc-notes-sections');
-        if (saved) {
-            sections = JSON.parse(saved);
+        // Vérifier s'il y a des données à migrer depuis localStorage
+        const migratedSections = await migrateFromLocalStorage();
+        
+        // Charger depuis IndexedDB
+        const loadedSections = await loadAllSections();
+        
+        if (loadedSections && loadedSections.length > 0) {
+            sections = loadedSections;
             // Ajouter lastModified aux anciennes sections si nécessaire
             sections.forEach(section => {
                 if (!section.lastModified) {
