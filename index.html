@@ -38,6 +38,15 @@
             <button class="btn-export" id="exportBtn">📥 Exporter la sélection</button>
             <button class="btn-import" id="importBtn">📤 Importer des notes</button>
             <button class="btn-delete" id="deleteSectionBtn">🗑️ Supprimer la sélection</button>
+            <hr style="margin: 15px 0; border: none; border-top: 1px solid #ddd;">
+            <div class="google-drive-section">
+                <h3 style="font-size: 14px; margin: 10px 0; color: #666;">Google Drive</h3>
+                <button class="btn-google-drive" id="googleDriveSignInBtn">🔑 Se connecter</button>
+                <button class="btn-google-drive" id="googleDriveSignOutBtn" style="display:none;">🚪 Déconnexion</button>
+                <button class="btn-sync" id="googleDriveSyncBtn" disabled>☁️ Synchroniser</button>
+                <button class="btn-restore" id="googleDriveRestoreBtn" disabled>📥 Restaurer</button>
+                <div id="syncStatus" class="sync-status"></div>
+            </div>
             <input type="file" id="importFileInput" accept=".json" style="display: none;">
             <ul class="toc" id="tocList"></ul>
         </aside>
@@ -48,9 +57,11 @@
                 <button class="btn-tool" id="boldBtn" title="Gras (Ctrl+B)"><strong>B</strong></button>
                 <button class="btn-tool" id="italicBtn" title="Italique (Ctrl+I)"><em>I</em></button>
                 <button class="btn-tool" id="underlineBtn" title="Souligné (Ctrl+U)"><u>U</u></button>
-                <button class="btn-tool" id="h1Btn" title="Titre 1">H1</button>
-                <button class="btn-tool" id="h2Btn" title="Titre 2">H2</button>
+                <button class="btn-tool" id="h1Btn" title="Titre (H1) / Normal">H1</button>
+                <button class="btn-tool" id="fontIncreaseBtn" title="Augmenter la taille">A+</button>
+                <button class="btn-tool" id="fontDecreaseBtn" title="Diminuer la taille">A-</button>
                 <button class="btn-tool" id="ulBtn" title="Liste">•</button>
+                <button class="btn-tool" id="timestampBtn" title="Insérer date et heure">🕐</button>
             </div>
 
             <div class="editor" id="editor" contenteditable="true" spellcheck="true">
@@ -59,6 +70,7 @@
     </div>
 
     <script src="db.js"></script>
+    <script src="google-drive-sync.js"></script>
     <script src="app.js"></script>
     <script>
         if ('serviceWorker' in navigator) {

@@ -14,6 +14,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     
     initializeEventListeners();
     
+    // Initialiser Google Drive
+    initGoogleDrive();
+    
     // Créer une première section si vide
     if (sections.length === 0) {
         createNewSection();
@@ -57,6 +60,12 @@ function initializeEventListeners() {
     // Supprimer section
     document.getElementById('deleteSectionBtn').addEventListener('click', deleteSelectedSections);
     
+    // Google Drive
+    document.getElementById('googleDriveSignInBtn').addEventListener('click', signInGoogleDrive);
+    document.getElementById('googleDriveSignOutBtn').addEventListener('click', signOutGoogleDrive);
+    document.getElementById('googleDriveSyncBtn').addEventListener('click', syncToGoogleDrive);
+    document.getElementById('googleDriveRestoreBtn').addEventListener('click', restoreFromGoogleDrive);
+    
     // Titre de section
     document.getElementById('sectionTitle').addEventListener('input', updateSectionTitle);
     
@@ -64,9 +73,11 @@ function initializeEventListeners() {
     document.getElementById('boldBtn').addEventListener('click', () => execCommand('bold'));
     document.getElementById('italicBtn').addEventListener('click', () => execCommand('italic'));
     document.getElementById('underlineBtn').addEventListener('click', () => execCommand('underline'));
-    document.getElementById('h1Btn').addEventListener('click', () => execCommand('formatBlock', '<h1>'));
-    document.getElementById('h2Btn').addEventListener('click', () => execCommand('formatBlock', '<h2>'));
-    document.getElementById('ulBtn').addEventListener('click', () => execCommand('insertUnorderedList'));
+    document.getElementById('h1Btn').addEventListener('click', toggleHeading);
+    document.getElementById('fontIncreaseBtn').addEventListener('click', increaseFontSize);
+    document.getElementById('fontDecreaseBtn').addEventListener('click', decreaseFontSize);
+    document.getElementById('ulBtn').addEventListener('click', toggleList);
+    document.getElementById('timestampBtn').addEventListener('click', insertTimestamp);
     
     // Éditeur
     const editor = document.getElementById('editor');
@@ -260,12 +271,361 @@ function execCommand(command, value = null) {
     setTimeout(updateToolbarState, 10);
 }
 
+// Toggle entre H1 et texte normal
+function toggleHeading() {
+    const selection = window.getSelection();
+    if (!selection.rangeCount) return;
+    
+    const range = selection.getRangeAt(0);
+    let node = range.startContainer;
+    
+    // Trouver le bloc parent
+    while (node && node.nodeType !== 1) {
+        node = node.parentNode;
+    }
+    
+    if (node && node !== document.getElementById('editor')) {
+        // Vérifier si on est déjà dans un H1
+        if (node.tagName === 'H1') {
+            // Retirer le H1 et revenir à un div normal
+            const div = document.createElement('div');
+            div.innerHTML = node.innerHTML;
+            
+            // Retirer tous les styles de fontSize dans le contenu
+            removeAllFontSizes(div);
+            
+            node.parentNode.replaceChild(div, node);
+            
+            // Restaurer la sélection dans le nouveau div
+            const newRange = document.createRange();
+            newRange.selectNodeContents(div);
+            newRange.collapse(false);
+            selection.removeAllRanges();
+            selection.addRange(newRange);
+        } else {
+            // Appliquer H1 en préservant les styles
+            const innerHTML = node.innerHTML;
+            const heading = document.createElement('h1');
+            heading.innerHTML = innerHTML;
+            
+            node.parentNode.replaceChild(heading, node);
+            
+            // Restaurer la sélection
+            const newRange = document.createRange();
+            newRange.selectNodeContents(heading);
+            newRange.collapse(false);
+            selection.removeAllRanges();
+            selection.addRange(newRange);
+        }
+    }
+    
+    document.getElementById('editor').focus();
+    updateToolbarState();
+}
+
+// Insérer la date et l'heure au format YYYY-MM-DD HH:MM
+function insertTimestamp() {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    const hours = String(now.getHours()).padStart(2, '0');
+    const minutes = String(now.getMinutes()).padStart(2, '0');
+    
+    const timestamp = `${year}-${month}-${day} ${hours}:${minutes}`;
+    
+    // Insérer à la position du curseur
+    const selection = window.getSelection();
+    if (selection.rangeCount > 0) {
+        const range = selection.getRangeAt(0);
+        range.deleteContents();
+        
+        const textNode = document.createTextNode(timestamp);
+        range.insertNode(textNode);
+        
+        // Placer le curseur après le texte inséré
+        range.setStartAfter(textNode);
+        range.setEndAfter(textNode);
+        selection.removeAllRanges();
+        selection.addRange(range);
+        
+        // Déclencher la sauvegarde
+        if (currentSectionId) {
+            const section = sections.find(s => s.id === currentSectionId);
+            if (section) {
+                section.content = document.getElementById('editor').innerHTML;
+                section.lastModified = new Date().toISOString();
+                updateLastModifiedDisplay(section.lastModified);
+                clearTimeout(autoSaveTimer);
+                autoSaveTimer = setTimeout(() => {
+                    saveData();
+                }, 500);
+            }
+        }
+    }
+    
+    document.getElementById('editor').focus();
+}
+
+// Toggle liste à puces
+function toggleList() {
+    const selection = window.getSelection();
+    if (!selection.rangeCount) return;
+    
+    const range = selection.getRangeAt(0);
+    let node = range.startContainer;
+    
+    // Trouver le bloc parent ou l'élément LI
+    while (node && node.nodeType !== 1) {
+        node = node.parentNode;
+    }
+    
+    // Vérifier si on est dans une liste
+    let listParent = node;
+    while (listParent && listParent !== document.getElementById('editor')) {
+        if (listParent.tagName === 'UL') {
+            // On est dans une liste, la retirer
+            removeList(listParent);
+            document.getElementById('editor').focus();
+            updateToolbarState();
+            return;
+        }
+        listParent = listParent.parentNode;
+    }
+    
+    // Sinon, créer une liste
+    if (node && node !== document.getElementById('editor')) {
+        const innerHTML = node.innerHTML;
+        
+        // Créer la structure UL > LI
+        const ul = document.createElement('ul');
+        const li = document.createElement('li');
+        li.innerHTML = innerHTML;
+        ul.appendChild(li);
+        
+        node.parentNode.replaceChild(ul, node);
+        
+        // Restaurer la sélection dans le LI
+        const newRange = document.createRange();
+        newRange.selectNodeContents(li);
+        newRange.collapse(false);
+        selection.removeAllRanges();
+        selection.addRange(newRange);
+    }
+    
+    document.getElementById('editor').focus();
+    updateToolbarState();
+}
+
+// Retirer une liste et revenir au texte normal
+function removeList(ulElement) {
+    const selection = window.getSelection();
+    const range = selection.getRangeAt(0);
+    
+    // Trouver l'élément LI courant
+    let liNode = range.startContainer;
+    while (liNode && liNode.tagName !== 'LI') {
+        liNode = liNode.parentNode;
+    }
+    
+    if (liNode) {
+        // Créer un div avec le contenu du LI
+        const div = document.createElement('div');
+        div.innerHTML = liNode.innerHTML;
+        
+        // Remplacer la liste par le div
+        ulElement.parentNode.replaceChild(div, ulElement);
+        
+        // Restaurer la sélection
+        const newRange = document.createRange();
+        newRange.selectNodeContents(div);
+        newRange.collapse(false);
+        selection.removeAllRanges();
+        selection.addRange(newRange);
+    }
+}
+
+// Appliquer un titre (H1 ou H2) en préservant les styles inline
+function applyHeading(tag) {
+    const selection = window.getSelection();
+    if (!selection.rangeCount) return;
+    
+    const range = selection.getRangeAt(0);
+    let node = range.startContainer;
+    
+    // Trouver le bloc parent
+    while (node && node.nodeType !== 1) {
+        node = node.parentNode;
+    }
+    
+    if (node && node !== document.getElementById('editor')) {
+        // Sauvegarder le contenu HTML avec tous les styles inline
+        const innerHTML = node.innerHTML;
+        
+        // Créer le nouveau heading
+        const heading = document.createElement(tag);
+        heading.innerHTML = innerHTML;
+        
+        // Remplacer le noeud
+        node.parentNode.replaceChild(heading, node);
+        
+        // Restaurer la sélection
+        const newRange = document.createRange();
+        newRange.selectNodeContents(heading);
+        newRange.collapse(false);
+        selection.removeAllRanges();
+        selection.addRange(newRange);
+    }
+    
+    document.getElementById('editor').focus();
+}
+
+// Formater en texte normal (retirer H1/H2)
+function formatToNormalText() {
+    const selection = window.getSelection();
+    if (!selection.rangeCount) return;
+    
+    const range = selection.getRangeAt(0);
+    let node = range.startContainer;
+    
+    // Trouver le bloc parent (H1, H2, P, DIV, etc.)
+    while (node && node.nodeType !== 1) {
+        node = node.parentNode;
+    }
+    
+    // Si on est dans un H1 ou H2, remplacer par DIV pour éviter le saut de ligne
+    if (node && (node.tagName === 'H1' || node.tagName === 'H2' || node.tagName === 'P' || node.tagName === 'DIV')) {
+        const div = document.createElement('div');
+        div.innerHTML = node.innerHTML;
+        
+        // Retirer tous les styles de fontSize dans le contenu
+        removeAllFontSizes(div);
+        
+        node.parentNode.replaceChild(div, node);
+        
+        // Restaurer la sélection dans le nouveau div
+        const newRange = document.createRange();
+        newRange.selectNodeContents(div);
+        newRange.collapse(false);
+        selection.removeAllRanges();
+        selection.addRange(newRange);
+    } else {
+        // Sinon, utiliser la commande standard
+        document.execCommand('formatBlock', false, '<div>');
+    }
+    
+    document.getElementById('editor').focus();
+}
+
+// Fonction utilitaire pour retirer tous les fontSize
+function removeAllFontSizes(element) {
+    // Retirer le fontSize de l'élément lui-même
+    if (element.style) {
+        element.style.fontSize = '';
+    }
+    
+    // Parcourir tous les enfants
+    const allElements = element.querySelectorAll('*');
+    allElements.forEach(el => {
+        if (el.style) {
+            el.style.fontSize = '';
+        }
+    });
+}
+
+// Augmenter la taille de police
+function increaseFontSize() {
+    const selection = window.getSelection();
+    if (selection.rangeCount > 0 && !selection.isCollapsed) {
+        const range = selection.getRangeAt(0);
+        
+        // Extraire le contenu sélectionné
+        const fragment = range.extractContents();
+        
+        // Parcourir tous les noeuds pour ajuster la taille
+        adjustFontSizeInFragment(fragment, 1.2);
+        
+        // Réinsérer le fragment modifié
+        range.insertNode(fragment);
+        
+        // Restaurer la sélection
+        const newRange = document.createRange();
+        newRange.setStartBefore(fragment.firstChild);
+        newRange.setEndAfter(fragment.lastChild);
+        selection.removeAllRanges();
+        selection.addRange(newRange);
+    }
+    document.getElementById('editor').focus();
+}
+
+// Diminuer la taille de police
+function decreaseFontSize() {
+    const selection = window.getSelection();
+    if (selection.rangeCount > 0 && !selection.isCollapsed) {
+        const range = selection.getRangeAt(0);
+        
+        // Extraire le contenu sélectionné
+        const fragment = range.extractContents();
+        
+        // Parcourir tous les noeuds pour ajuster la taille
+        adjustFontSizeInFragment(fragment, 0.8);
+        
+        // Réinsérer le fragment modifié
+        range.insertNode(fragment);
+        
+        // Restaurer la sélection
+        const newRange = document.createRange();
+        newRange.setStartBefore(fragment.firstChild);
+        newRange.setEndAfter(fragment.lastChild);
+        selection.removeAllRanges();
+        selection.addRange(newRange);
+    }
+    document.getElementById('editor').focus();
+}
+
+// Fonction utilitaire pour ajuster la taille de police dans un fragment
+function adjustFontSizeInFragment(node, factor) {
+    if (node.nodeType === 1) { // Élément
+        // Si l'élément a déjà une taille de police définie
+        if (node.style && node.style.fontSize) {
+            const currentSize = parseFloat(node.style.fontSize);
+            node.style.fontSize = (currentSize * factor) + 'px';
+        } else {
+            // Récupérer la taille calculée et l'appliquer
+            const tempDiv = document.createElement('div');
+            tempDiv.appendChild(node.cloneNode(false));
+            document.getElementById('editor').appendChild(tempDiv);
+            const computedSize = parseFloat(window.getComputedStyle(tempDiv.firstChild).fontSize);
+            document.getElementById('editor').removeChild(tempDiv);
+            
+            node.style.fontSize = (computedSize * factor) + 'px';
+        }
+    } else if (node.nodeType === 3) { // Noeud texte
+        // Envelopper dans un span avec la taille ajustée
+        const span = document.createElement('span');
+        const tempDiv = document.createElement('div');
+        tempDiv.textContent = node.textContent;
+        document.getElementById('editor').appendChild(tempDiv);
+        const computedSize = parseFloat(window.getComputedStyle(tempDiv).fontSize);
+        document.getElementById('editor').removeChild(tempDiv);
+        
+        span.style.fontSize = (computedSize * factor) + 'px';
+        span.textContent = node.textContent;
+        node.parentNode.replaceChild(span, node);
+    }
+    
+    // Parcourir les enfants
+    const children = Array.from(node.childNodes);
+    children.forEach(child => adjustFontSizeInFragment(child, factor));
+}
+
 // Mettre à jour l'état visuel des boutons de la barre d'outils
 function updateToolbarState() {
     // Vérifier l'état de chaque format
     const boldBtn = document.getElementById('boldBtn');
     const italicBtn = document.getElementById('italicBtn');
     const underlineBtn = document.getElementById('underlineBtn');
+    const h1Btn = document.getElementById('h1Btn');
     
     // Mettre à jour les boutons selon l'état du format
     if (document.queryCommandState('bold')) {
@@ -286,12 +646,37 @@ function updateToolbarState() {
         underlineBtn.classList.remove('active');
     }
     
-    // Vérifier si on est dans une liste
-    const ulBtn = document.getElementById('ulBtn');
-    if (document.queryCommandState('insertUnorderedList')) {
-        ulBtn.classList.add('active');
-    } else {
-        ulBtn.classList.remove('active');
+    // Vérifier si on est dans un H1
+    const selection = window.getSelection();
+    if (selection.rangeCount > 0) {
+        let node = selection.getRangeAt(0).startContainer;
+        while (node && node.nodeType !== 1) {
+            node = node.parentNode;
+        }
+        
+        if (node && node.tagName === 'H1') {
+            h1Btn.classList.add('active');
+        } else {
+            h1Btn.classList.remove('active');
+        }
+        
+        // Vérifier si on est dans une liste
+        let listNode = node;
+        let inList = false;
+        while (listNode && listNode !== document.getElementById('editor')) {
+            if (listNode.tagName === 'UL' || listNode.tagName === 'LI') {
+                inList = true;
+                break;
+            }
+            listNode = listNode.parentNode;
+        }
+        
+        const ulBtn = document.getElementById('ulBtn');
+        if (inList) {
+            ulBtn.classList.add('active');
+        } else {
+            ulBtn.classList.remove('active');
+        }
     }
 }
 
