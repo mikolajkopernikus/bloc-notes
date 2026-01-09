@@ -3,32 +3,92 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="Bloc-notes avec table des matières">
+    <meta name="description" content="Bloc-notes avec table des matières - Version Standalone">
     <meta name="theme-color" content="#4CAF50">
-    <title>Bloc-Notes</title>
-    <link rel="manifest" href="manifest.json">
-    <link rel="stylesheet" href="style.css">
-    <link rel="icon" type="image/png" href="icon-192.png">
-    <link rel="apple-touch-icon" href="icon-192.png">
+    <title>Bloc-Notes Standalone</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif; background: #f5f5f5; overflow: hidden; }
+        .app { display: flex; flex-direction: column; height: 100vh; }
+        .sidebar-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 150; display: none; }
+        .sidebar-overlay.show { display: block; }
+        .header { background: #1a237e; color: white; padding: 10px 15px; display: flex; align-items: center; gap: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.2); z-index: 100; }
+        .note-label-container { display: flex; flex-direction: column; align-items: flex-start; line-height: 1; white-space: nowrap; }
+        .note-label { font-size: 1rem; font-weight: 500; white-space: nowrap; }
+        .version-label { font-size: 0.6rem; color: rgba(255,255,255,0.7); margin-top: 2px; font-weight: 300; }
+        .section-title-header { flex: 1; background: rgba(255,255,255,0.9); border: none; color: #333; font-size: 1rem; font-weight: 500; padding: 8px 12px; border-radius: 5px; outline: none; }
+        .section-title-header::placeholder { color: #999; }
+        .section-title-header:focus { background: white; }
+        .last-modified { font-size: 0.75rem; color: rgba(255,255,255,0.9); white-space: nowrap; padding: 0 5px; }
+        .storage-status { font-size: 1.2rem; padding: 0 5px; cursor: help; }
+        .btn-menu { background: rgba(255,255,255,0.2); border: none; color: white; font-size: 1.3rem; width: 40px; height: 40px; border-radius: 50%; cursor: pointer; transition: background 0.2s; flex-shrink: 0; }
+        .btn-menu:active { background: rgba(255,255,255,0.3); }
+        .sidebar { position: fixed; left: -300px; top: 0; width: 300px; height: 100%; background: white; box-shadow: 2px 0 10px rgba(0,0,0,0.1); transition: left 0.3s; z-index: 200; overflow-y: auto; }
+        .sidebar.open { left: 0; }
+        .sidebar-header { background: #1a237e; color: white; padding: 15px; display: flex; justify-content: space-between; align-items: center; }
+        .sidebar-header h2 { font-size: 1.2rem; font-weight: 500; }
+        .btn-close { background: none; border: none; color: white; font-size: 1.5rem; cursor: pointer; width: 35px; height: 35px; }
+        .btn-new-section, .btn-export, .btn-import { background: #1a237e; color: white; border: none; padding: 12px; margin: 15px 15px 10px 15px; border-radius: 5px; cursor: pointer; font-size: 1rem; font-weight: 500; width: calc(100% - 30px); }
+        .btn-export, .btn-import { margin-top: 0; }
+        .btn-delete { background: #f44336; color: white; border: none; padding: 12px; margin: 0 15px 15px 15px; border-radius: 5px; cursor: pointer; font-size: 1rem; font-weight: 500; width: calc(100% - 30px); }
+        .google-drive-section { padding: 0 15px; }
+        .btn-google-drive, .btn-sync, .btn-restore { color: white; border: none; padding: 12px; margin: 0 0 10px 0; border-radius: 5px; cursor: pointer; font-size: 1rem; font-weight: 500; width: 100%; }
+        .btn-google-drive { background: #4285f4; }
+        .btn-sync { background: #34a853; }
+        .btn-sync:disabled, .btn-restore:disabled { background: #ccc; cursor: not-allowed; }
+        .btn-restore { background: #fbbc04; color: #333; }
+        .sync-status { margin-top: 10px; padding: 8px; border-radius: 4px; font-size: 0.85rem; text-align: center; }
+        .sync-status.success { background: #d4edda; color: #155724; }
+        .sync-status.error { background: #f8d7da; color: #721c24; }
+        .sync-status.loading, .sync-status.info { background: #d1ecf1; color: #0c5460; }
+        .toc { list-style: none; padding: 0; }
+        .toc li { padding: 12px 20px; cursor: pointer; border-bottom: 1px solid #eee; transition: background 0.2s; display: flex; align-items: center; gap: 10px; }
+        .toc li input[type="checkbox"] { cursor: pointer; width: 18px; height: 18px; flex-shrink: 0; }
+        .toc li span { flex: 1; }
+        .toc li:hover { background: #f0f0f0; }
+        .toc li.active { background: #e8eaf6; border-left: 4px solid #1a237e; }
+        .editor-container { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+        .toolbar { display: flex; gap: 5px; padding: 10px; background: white; border-bottom: 1px solid #ddd; overflow-x: auto; }
+        .btn-tool { background: #f5f5f5; border: 1px solid #ddd; padding: 8px 12px; border-radius: 5px; cursor: pointer; font-size: 1rem; min-width: 40px; transition: background 0.2s; }
+        .btn-tool:active { background: #e0e0e0; }
+        .btn-tool.active { background: #1a237e; color: white; border-color: #1a237e; }
+        .editor { flex: 1; padding: 20px; background: white; overflow-y: auto; outline: none; font-size: 1rem; line-height: 1.6; }
+        .editor p { margin-bottom: 10px; }
+        .editor h1 { font-size: 1.8rem; margin: 20px 0 10px 0; color: #333; }
+        .editor h2 { font-size: 1.4rem; margin: 15px 0 10px 0; color: #555; }
+        .editor ul { margin: 0; padding-left: 20px; }
+        .editor li { margin: 0; }
+        .editor strong { font-weight: bold; }
+        .editor em { font-style: italic; }
+        .editor u { text-decoration: underline; }
+        @media (max-width: 480px) { .editor { font-size: 0.95rem; padding: 15px; } }
+        
+        /* Configuration Google Drive */
+        .config-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 300; display: none; }
+        .config-overlay.show { display: flex; align-items: center; justify-content: center; }
+        .config-panel { background: white; padding: 30px; border-radius: 10px; max-width: 500px; width: 90%; }
+        .config-panel h3 { margin-bottom: 20px; color: #1a237e; }
+        .config-panel label { display: block; margin-bottom: 5px; font-weight: 500; }
+        .config-panel input { width: 100%; padding: 10px; margin-bottom: 15px; border: 1px solid #ddd; border-radius: 5px; font-size: 0.9rem; }
+        .config-buttons { display: flex; gap: 10px; margin-top: 20px; }
+        .config-buttons button { flex: 1; padding: 12px; border: none; border-radius: 5px; cursor: pointer; font-weight: 500; }
+        .btn-save-config { background: #4285f4; color: white; }
+        .btn-cancel-config { background: #ccc; color: #333; }
+    </style>
 </head>
 <body>
     <div class="app">
-        <!-- Overlay pour fermer la sidebar -->
         <div class="sidebar-overlay" id="sidebarOverlay"></div>
-        
-        <!-- En-tête -->
         <header class="header">
             <button class="btn-menu" id="toggleSidebar">☰</button>
             <div class="note-label-container">
                 <span class="note-label">Note:</span>
-                <span class="version-label">v0.3</span>
+                <span class="version-label">v0.4 Standalone</span>
             </div>
             <input type="text" id="sectionTitle" class="section-title-header" placeholder="Titre">
             <span class="last-modified" id="lastModified"></span>
             <span class="storage-status" id="storageStatus" title="Statut de protection des données"></span>
         </header>
-
-        <!-- Barre latérale - Table des matières -->
         <aside class="sidebar" id="sidebar">
             <div class="sidebar-header">
                 <h2>Table des matières</h2>
@@ -41,6 +101,7 @@
             <hr style="margin: 15px 0; border: none; border-top: 1px solid #ddd;">
             <div class="google-drive-section">
                 <h3 style="font-size: 14px; margin: 10px 0; color: #666;">Google Drive</h3>
+                <button class="btn-google-drive" id="googleConfigBtn">⚙️ Configurer</button>
                 <button class="btn-google-drive" id="googleDriveSignInBtn">🔑 Se connecter</button>
                 <button class="btn-google-drive" id="googleDriveSignOutBtn" style="display:none;">🚪 Déconnexion</button>
                 <button class="btn-sync" id="googleDriveSyncBtn" disabled>☁️ Synchroniser</button>
@@ -50,8 +111,6 @@
             <input type="file" id="importFileInput" accept=".json" style="display: none;">
             <ul class="toc" id="tocList"></ul>
         </aside>
-
-        <!-- Zone d'édition -->
         <main class="editor-container">
             <div class="toolbar">
                 <button class="btn-tool" id="boldBtn" title="Gras (Ctrl+B)"><strong>B</strong></button>
@@ -63,21 +122,86 @@
                 <button class="btn-tool" id="ulBtn" title="Liste">•</button>
                 <button class="btn-tool" id="timestampBtn" title="Insérer date et heure">🕐</button>
             </div>
-
-            <div class="editor" id="editor" contenteditable="true" spellcheck="true">
-            </div>
+            <div class="editor" id="editor" contenteditable="true" spellcheck="true"></div>
         </main>
     </div>
+    
+    <!-- Panneau de configuration Google Drive -->
+    <div class="config-overlay" id="configOverlay">
+        <div class="config-panel">
+            <h3>⚙️ Configuration Google Drive</h3>
+            <p style="font-size: 0.9rem; color: #666; margin-bottom: 20px;">
+                Configurez vos identifiants Google Drive une seule fois.
+                <a href="https://github.com/mikolajkopernikus/bloc-notes/blob/main/CONFIGURATION_GOOGLE_DRIVE.md" target="_blank" style="color: #4285f4;">Voir le guide</a>
+            </p>
+            <label for="clientIdInput">Client ID:</label>
+            <input type="text" id="clientIdInput" placeholder="123456789-abc.apps.googleusercontent.com">
+            
+            <label for="apiKeyInput">API Key:</label>
+            <input type="text" id="apiKeyInput" placeholder="AIzaSy...">
+            
+            <div class="config-buttons">
+                <button class="btn-save-config" id="saveConfigBtn">💾 Enregistrer</button>
+                <button class="btn-cancel-config" id="cancelConfigBtn">❌ Annuler</button>
+            </div>
+        </div>
+    </div>
 
-    <script src="db.js"></script>
-    <script src="google-drive-sync.js"></script>
-    <script src="app.js"></script>
     <script>
-        if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('sw.js')
-                .then(() => console.log('Service Worker enregistré'))
-                .catch(err => console.log('Erreur Service Worker:', err));
-        }
+// ===== DATABASE (IndexedDB) =====
+const DB_NAME='BlocNotesDB',DB_VERSION=1,STORE_NAME='sections';
+let db=null;
+async function initDB(){return new Promise((r,j)=>{const req=indexedDB.open(DB_NAME,DB_VERSION);req.onerror=()=>j(req.error);req.onsuccess=()=>{db=req.result;r(db)};req.onupgradeneeded=e=>{db=e.target.result;if(!db.objectStoreNames.contains(STORE_NAME)){const os=db.createObjectStore(STORE_NAME,{keyPath:'id'});os.createIndex('lastModified','lastModified',{unique:false})}}})}
+async function checkPersistentStorage(){if(navigator.storage&&navigator.storage.persisted){const p=await navigator.storage.persisted();const el=document.getElementById('storageStatus');if(el){el.textContent=p?'🔒':'⚠️';el.title=p?'Données protégées':'ATTENTION: Données non protégées';el.style.color=p?'#4CAF50':'#ff9800'}return p}return false}
+async function requestPersistentStorage(){if(navigator.storage&&navigator.storage.persist){const p=await navigator.storage.persist();await checkPersistentStorage();return p}return false}
+async function saveAllSections(secs){if(!db)await initDB();return new Promise((r,j)=>{const t=db.transaction([STORE_NAME],'readwrite'),os=t.objectStore(STORE_NAME);os.clear().onsuccess=()=>secs.forEach(s=>os.add(s));t.oncomplete=()=>r();t.onerror=()=>j(t.error)})}
+async function loadAllSections(){if(!db)await initDB();return new Promise((r,j)=>{const t=db.transaction([STORE_NAME],'readonly'),req=t.objectStore(STORE_NAME).getAll();req.onsuccess=()=>r(req.result);req.onerror=()=>j(req.error)})}
+async function migrateFromLocalStorage(){try{const d=localStorage.getItem('bloc-notes-sections');if(d){const s=JSON.parse(d);await saveAllSections(s);localStorage.removeItem('bloc-notes-sections');return s}}catch(e){}return null}
+
+// ===== GOOGLE DRIVE SYNC (avec configuration) =====
+let GOOGLE_CONFIG={CLIENT_ID:'',API_KEY:'',DISCOVERY_DOC:'https://www.googleapis.com/discovery/v1/apis/drive/v3/rest',SCOPES:'https://www.googleapis.com/auth/drive.file'};
+let tokenClient,gapiInited=false,gisInited=false,isSignedIn=false,lastInitError=null;
+function loadGoogleConfig(){const c=localStorage.getItem('googleDriveConfig');if(c){const cfg=JSON.parse(c);GOOGLE_CONFIG.CLIENT_ID=cfg.clientId||'';GOOGLE_CONFIG.API_KEY=cfg.apiKey||''}}
+function saveGoogleConfig(clientId,apiKey){localStorage.setItem('googleDriveConfig',JSON.stringify({clientId,apiKey}));GOOGLE_CONFIG.CLIENT_ID=clientId;GOOGLE_CONFIG.API_KEY=apiKey}
+async function initGoogleDrive(){loadGoogleConfig();if(!GOOGLE_CONFIG.CLIENT_ID||!GOOGLE_CONFIG.API_KEY){console.log('Configuration Google Drive non définie');return}try{await loadGoogleAPIs();await gapiInit();gisInit();lastInitError=null}catch(e){console.error('Erreur init Google Drive:',e);lastInitError=e.message||String(e);showSyncStatus('❌ Erreur: '+lastInitError,'error')}}
+function loadGoogleAPIs(){return new Promise((r,j)=>{if(window.gapi&&window.google){r();return}const gs=document.createElement('script');gs.src='https://apis.google.com/js/api.js';gs.onload=()=>{const gis=document.createElement('script');gis.src='https://accounts.google.com/gsi/client';gis.onload=r;gis.onerror=j;document.body.appendChild(gis)};gs.onerror=j;document.body.appendChild(gs)})}
+async function gapiInit(){await new Promise(r=>gapi.load('client',r));await gapi.client.init({apiKey:GOOGLE_CONFIG.API_KEY,discoveryDocs:[GOOGLE_CONFIG.DISCOVERY_DOC]});gapiInited=true}
+function gisInit(){tokenClient=google.accounts.oauth2.initTokenClient({client_id:GOOGLE_CONFIG.CLIENT_ID,scope:GOOGLE_CONFIG.SCOPES,callback:res=>{if(res.error)throw res;isSignedIn=true;updateSyncButton();showSyncStatus('✓ Connecté','success')}});gisInited=true}
+async function signInGoogleDrive(){if(!GOOGLE_CONFIG.CLIENT_ID){alert('Veuillez d\'abord configurer vos identifiants Google Drive (bouton ⚙️ Configurer)');return}if(!gapiInited||!gisInited){showSyncStatus('⏳ Initialisation...','loading');let attempts=0;while((!gapiInited||!gisInited)&&attempts<20){await new Promise(r=>setTimeout(r,500));attempts++}if(!gapiInited||!gisInited){const err=lastInitError||'Timeout d\'initialisation';alert('❌ Erreur d\'initialisation:\n\n'+err+'\n\nVérifiez :\n1. CLIENT_ID correct\n2. API_KEY correcte\n3. Origines autorisées dans Google Cloud Console');showSyncStatus('❌ '+err,'error');return}showSyncStatus('','info')}tokenClient.requestAccessToken({prompt:'consent'})}
+function signOutGoogleDrive(){const t=gapi.client.getToken();if(t){google.accounts.oauth2.revoke(t.access_token);gapi.client.setToken('');isSignedIn=false;updateSyncButton();showSyncStatus('Déconnecté','info')}}
+async function syncToGoogleDrive(){if(!isSignedIn){alert('Connectez-vous d\'abord');return}showSyncStatus('⏳ Sync...','loading');try{const d={sections,lastSync:new Date().toISOString(),version:'0.4'},json=JSON.stringify(d,null,2),f=await findNotesFile();f?await updateFileInDrive(f.id,json):await createFileInDrive(json);showSyncStatus('✓ Synchronisé','success');localStorage.setItem('lastGoogleDriveSync',new Date().toISOString())}catch(e){showSyncStatus('❌ Erreur','error');alert('Erreur: '+e.message)}}
+async function restoreFromGoogleDrive(){if(!isSignedIn){alert('Connectez-vous d\'abord');return}if(!confirm('Remplacer vos notes locales ?'))return;showSyncStatus('⏳ Restauration...','loading');try{const f=await findNotesFile();if(!f){alert('Aucune sauvegarde');showSyncStatus('❌ Aucune sauvegarde','error');return}const r=await gapi.client.drive.files.get({fileId:f.id,alt:'media'}),d=JSON.parse(r.body);if(d.sections&&Array.isArray(d.sections)){sections=d.sections;await saveData();updateTOC();if(sections.length>0)loadSection(sections[0].id);showSyncStatus('✓ Restauré','success');alert(sections.length+' note(s) restaurée(s)')}else throw new Error('Format invalide')}catch(e){showSyncStatus('❌ Erreur','error');alert('Erreur: '+e.message)}}
+async function findNotesFile(){try{const r=await gapi.client.drive.files.list({q:"name='bloc-notes-backup.json' and trashed=false",spaces:'drive',fields:'files(id, name, modifiedTime)'});return r.result.files&&r.result.files.length>0?r.result.files[0]:null}catch(e){throw e}}
+async function createFileInDrive(content){const f=new Blob([content],{type:'application/json'}),m={name:'bloc-notes-backup.json',mimeType:'application/json'},form=new FormData();form.append('metadata',new Blob([JSON.stringify(m)],{type:'application/json'}));form.append('file',f);const r=await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart',{method:'POST',headers:new Headers({'Authorization':'Bearer '+gapi.client.getToken().access_token}),body:form});return await r.json()}
+async function updateFileInDrive(fileId,content){const f=new Blob([content],{type:'application/json'}),r=await fetch(`https://www.googleapis.com/upload/drive/v3/files/${fileId}?uploadType=media`,{method:'PATCH',headers:new Headers({'Authorization':'Bearer '+gapi.client.getToken().access_token,'Content-Type':'application/json'}),body:f});return await r.json()}
+function updateSyncButton(){const sb=document.getElementById('googleDriveSyncBtn'),sib=document.getElementById('googleDriveSignInBtn'),sob=document.getElementById('googleDriveSignOutBtn'),rb=document.getElementById('googleDriveRestoreBtn');if(isSignedIn){if(sb)sb.disabled=false;if(rb)rb.disabled=false;if(sib)sib.style.display='none';if(sob)sob.style.display='inline-block'}else{if(sb)sb.disabled=true;if(rb)rb.disabled=true;if(sib)sib.style.display='inline-block';if(sob)sob.style.display='none'}}
+function showSyncStatus(msg,type){const el=document.getElementById('syncStatus');if(!el)return;el.textContent=msg;el.className='sync-status '+type;if(type!=='error')setTimeout(()=>{el.textContent='';el.className='sync-status'},5000)}
+
+// ===== APP LOGIC =====
+let sections=[],currentSectionId=null,autoSaveTimer=null;
+document.addEventListener('DOMContentLoaded',async()=>{await initDB();await requestPersistentStorage();await loadData();initializeEventListeners();initGoogleDrive();if(sections.length===0)createNewSection();else loadSection(sections[0].id)});
+function initializeEventListeners(){document.getElementById('toggleSidebar').addEventListener('click',()=>{document.getElementById('sidebar').classList.add('open');document.getElementById('sidebarOverlay').classList.add('show')});document.getElementById('closeSidebar').addEventListener('click',()=>{document.getElementById('sidebar').classList.remove('open');document.getElementById('sidebarOverlay').classList.remove('show')});document.getElementById('sidebarOverlay').addEventListener('click',()=>{document.getElementById('sidebar').classList.remove('open');document.getElementById('sidebarOverlay').classList.remove('show')});document.getElementById('newSectionBtn').addEventListener('click',createNewSection);document.getElementById('exportBtn').addEventListener('click',exportSelectedNotes);document.getElementById('importBtn').addEventListener('click',()=>document.getElementById('importFileInput').click());document.getElementById('importFileInput').addEventListener('change',importNotes);document.getElementById('deleteSectionBtn').addEventListener('click',deleteSelectedSections);document.getElementById('googleConfigBtn').addEventListener('click',showConfigPanel);document.getElementById('googleDriveSignInBtn').addEventListener('click',signInGoogleDrive);document.getElementById('googleDriveSignOutBtn').addEventListener('click',signOutGoogleDrive);document.getElementById('googleDriveSyncBtn').addEventListener('click',syncToGoogleDrive);document.getElementById('googleDriveRestoreBtn').addEventListener('click',restoreFromGoogleDrive);document.getElementById('sectionTitle').addEventListener('input',updateSectionTitle);document.getElementById('boldBtn').addEventListener('click',()=>execCommand('bold'));document.getElementById('italicBtn').addEventListener('click',()=>execCommand('italic'));document.getElementById('underlineBtn').addEventListener('click',()=>execCommand('underline'));document.getElementById('h1Btn').addEventListener('click',toggleHeading);document.getElementById('fontIncreaseBtn').addEventListener('click',increaseFontSize);document.getElementById('fontDecreaseBtn').addEventListener('click',decreaseFontSize);document.getElementById('ulBtn').addEventListener('click',toggleList);document.getElementById('timestampBtn').addEventListener('click',insertTimestamp);const ed=document.getElementById('editor');ed.addEventListener('input',()=>{if(currentSectionId){const s=sections.find(x=>x.id===currentSectionId);if(s){s.content=ed.innerHTML;s.lastModified=new Date().toISOString();updateLastModifiedDisplay(s.lastModified);clearTimeout(autoSaveTimer);autoSaveTimer=setTimeout(()=>saveData(),500)}}});ed.addEventListener('mouseup',updateToolbarState);ed.addEventListener('keyup',updateToolbarState);ed.addEventListener('focus',updateToolbarState);document.addEventListener('keydown',e=>{if(e.ctrlKey||e.metaKey){if(e.key==='b'){e.preventDefault();execCommand('bold')}else if(e.key==='i'){e.preventDefault();execCommand('italic')}else if(e.key==='u'){e.preventDefault();execCommand('underline')}}})}
+function showConfigPanel(){const co=document.getElementById('configOverlay');co.classList.add('show');loadGoogleConfig();document.getElementById('clientIdInput').value=GOOGLE_CONFIG.CLIENT_ID||'';document.getElementById('apiKeyInput').value=GOOGLE_CONFIG.API_KEY||'';document.getElementById('saveConfigBtn').onclick=()=>{const cid=document.getElementById('clientIdInput').value.trim(),ak=document.getElementById('apiKeyInput').value.trim();if(!cid||!ak){alert('Veuillez remplir les deux champs');return}saveGoogleConfig(cid,ak);co.classList.remove('show');alert('Configuration enregistrée ! Vous pouvez maintenant vous connecter.');initGoogleDrive()};document.getElementById('cancelConfigBtn').onclick=()=>co.classList.remove('show')}
+async function loadData(){try{let data=await loadAllSections();if(!data||data.length===0){data=await migrateFromLocalStorage()}if(data&&data.length>0){sections=data}else{sections=[]}}catch(e){sections=[]}}
+async function saveData(){try{await saveAllSections(sections)}catch(e){}}
+function createNewSection(){const n=new Date(),y=n.getFullYear(),m=String(n.getMonth()+1).padStart(2,'0'),d=String(n.getDate()).padStart(2,'0'),ds=`${y}-${m}-${d}`,tn=sections.filter(s=>s.title&&s.title.startsWith(ds)).length+1,newS={id:Date.now(),title:`${ds} note ${tn}`,content:'',createdAt:n.toISOString(),lastModified:n.toISOString()};sections.push(newS);updateTOC();loadSection(newS.id);saveData();document.getElementById('sidebar').classList.remove('open');document.getElementById('sidebarOverlay').classList.remove('show')}
+function loadSection(sid){const s=sections.find(x=>x.id===sid);if(!s)return;currentSectionId=sid;document.getElementById('sectionTitle').value=s.title;document.getElementById('editor').innerHTML=s.content;updateLastModifiedDisplay(s.lastModified);document.querySelectorAll('.toc li').forEach(li=>{li.classList.remove('active');if(parseInt(li.dataset.id)===sid)li.classList.add('active')})}
+function updateSectionTitle(){if(!currentSectionId)return;const s=sections.find(x=>x.id===currentSectionId);if(s){s.title=document.getElementById('sectionTitle').value||'Sans titre';s.lastModified=new Date().toISOString();updateLastModifiedDisplay(s.lastModified);updateTOC();clearTimeout(autoSaveTimer);autoSaveTimer=setTimeout(()=>saveData(),500)}}
+function deleteSelectedSections(){const cbs=document.querySelectorAll('.toc input[type="checkbox"]:checked');if(cbs.length===0){alert('Sélectionnez au moins une note');return}if(sections.length===cbs.length){alert('Vous ne pouvez pas tout supprimer');return}const ids=Array.from(cbs).map(cb=>parseInt(cb.dataset.sectionId));if(!confirm(`Supprimer ${ids.length} note(s) ?`))return;sections=sections.filter(s=>!ids.includes(s.id));if(ids.includes(currentSectionId))loadSection(sections[0].id);updateTOC();saveData()}
+function updateTOC(){const tl=document.getElementById('tocList');tl.innerHTML='';sections.forEach(s=>{const li=document.createElement('li');li.dataset.id=s.id;if(s.id===currentSectionId)li.classList.add('active');const cb=document.createElement('input');cb.type='checkbox';cb.dataset.sectionId=s.id;cb.addEventListener('click',e=>e.stopPropagation());const sp=document.createElement('span');sp.textContent=s.title;sp.addEventListener('click',()=>{loadSection(s.id);document.getElementById('sidebar').classList.remove('open');document.getElementById('sidebarOverlay').classList.remove('show')});li.appendChild(cb);li.appendChild(sp);tl.appendChild(li)})}
+function updateLastModifiedDisplay(iso){const el=document.getElementById('lastModified');if(!el)return;try{const d=new Date(iso);el.textContent=d.toLocaleString('fr-FR',{year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'})}catch(e){el.textContent=''}}
+function execCommand(cmd,val=null){document.execCommand(cmd,false,val);document.getElementById('editor').focus();setTimeout(updateToolbarState,10)}
+function toggleHeading(){const sel=window.getSelection();if(!sel.rangeCount)return;const rg=sel.getRangeAt(0);let n=rg.startContainer;while(n&&n.nodeType!==1)n=n.parentNode;if(n&&n!==document.getElementById('editor')){if(n.tagName==='H1'){const dv=document.createElement('div');dv.innerHTML=n.innerHTML;removeAllFontSizes(dv);n.parentNode.replaceChild(dv,n);const nr=document.createRange();nr.selectNodeContents(dv);nr.collapse(false);sel.removeAllRanges();sel.addRange(nr)}else{const h=document.createElement('h1');h.innerHTML=n.innerHTML;n.parentNode.replaceChild(h,n);const nr=document.createRange();nr.selectNodeContents(h);nr.collapse(false);sel.removeAllRanges();sel.addRange(nr)}}document.getElementById('editor').focus();updateToolbarState()}
+function removeAllFontSizes(el){if(el.style)el.style.fontSize='';el.querySelectorAll('*').forEach(e=>{if(e.style)e.style.fontSize=''})}
+function insertTimestamp(){const n=new Date(),ts=`${n.getFullYear()}-${String(n.getMonth()+1).padStart(2,'0')}-${String(n.getDate()).padStart(2,'0')} ${String(n.getHours()).padStart(2,'0')}:${String(n.getMinutes()).padStart(2,'0')}`,sel=window.getSelection();if(sel.rangeCount>0){const rg=sel.getRangeAt(0);rg.deleteContents();const tn=document.createTextNode(ts);rg.insertNode(tn);rg.setStartAfter(tn);rg.setEndAfter(tn);sel.removeAllRanges();sel.addRange(rg);if(currentSectionId){const s=sections.find(x=>x.id===currentSectionId);if(s){s.content=document.getElementById('editor').innerHTML;s.lastModified=new Date().toISOString();updateLastModifiedDisplay(s.lastModified);clearTimeout(autoSaveTimer);autoSaveTimer=setTimeout(()=>saveData(),500)}}}document.getElementById('editor').focus()}
+function toggleList(){const sel=window.getSelection();if(!sel.rangeCount)return;const rg=sel.getRangeAt(0);let n=rg.startContainer;while(n&&n.nodeType!==1)n=n.parentNode;let lp=n;while(lp&&lp!==document.getElementById('editor')){if(lp.tagName==='UL'){removeList(lp);document.getElementById('editor').focus();updateToolbarState();return}lp=lp.parentNode}if(n&&n!==document.getElementById('editor')){const ul=document.createElement('ul'),li=document.createElement('li');li.innerHTML=n.innerHTML;ul.appendChild(li);n.parentNode.replaceChild(ul,n);const nr=document.createRange();nr.selectNodeContents(li);nr.collapse(false);sel.removeAllRanges();sel.addRange(nr)}document.getElementById('editor').focus();updateToolbarState()}
+function removeList(ul){const sel=window.getSelection(),rg=sel.getRangeAt(0);let li=rg.startContainer;while(li&&li.tagName!=='LI')li=li.parentNode;if(li){const dv=document.createElement('div');dv.innerHTML=li.innerHTML;ul.parentNode.replaceChild(dv,ul);const nr=document.createRange();nr.selectNodeContents(dv);nr.collapse(false);sel.removeAllRanges();sel.addRange(nr)}}
+function increaseFontSize(){const sel=window.getSelection();if(sel.rangeCount>0&&!sel.isCollapsed){const rg=sel.getRangeAt(0),fg=rg.extractContents();adjustFontSizeInFragment(fg,1.2);rg.insertNode(fg);const nr=document.createRange();nr.setStartBefore(fg.firstChild);nr.setEndAfter(fg.lastChild);sel.removeAllRanges();sel.addRange(nr)}document.getElementById('editor').focus()}
+function decreaseFontSize(){const sel=window.getSelection();if(sel.rangeCount>0&&!sel.isCollapsed){const rg=sel.getRangeAt(0),fg=rg.extractContents();adjustFontSizeInFragment(fg,0.8);rg.insertNode(fg);const nr=document.createRange();nr.setStartBefore(fg.firstChild);nr.setEndAfter(fg.lastChild);sel.removeAllRanges();sel.addRange(nr)}document.getElementById('editor').focus()}
+function adjustFontSizeInFragment(n,f){if(n.nodeType===1){if(n.style&&n.style.fontSize){n.style.fontSize=(parseFloat(n.style.fontSize)*f)+'px'}else{const td=document.createElement('div');td.appendChild(n.cloneNode(false));document.getElementById('editor').appendChild(td);const cs=parseFloat(window.getComputedStyle(td.firstChild).fontSize);document.getElementById('editor').removeChild(td);n.style.fontSize=(cs*f)+'px'}}else if(n.nodeType===3){const sp=document.createElement('span'),td=document.createElement('div');td.textContent=n.textContent;document.getElementById('editor').appendChild(td);const cs=parseFloat(window.getComputedStyle(td).fontSize);document.getElementById('editor').removeChild(td);sp.style.fontSize=(cs*f)+'px';sp.textContent=n.textContent;n.parentNode.replaceChild(sp,n)}Array.from(n.childNodes).forEach(c=>adjustFontSizeInFragment(c,f))}
+function updateToolbarState(){const bb=document.getElementById('boldBtn'),ib=document.getElementById('italicBtn'),ub=document.getElementById('underlineBtn'),h1b=document.getElementById('h1Btn');document.queryCommandState('bold')?bb.classList.add('active'):bb.classList.remove('active');document.queryCommandState('italic')?ib.classList.add('active'):ib.classList.remove('active');document.queryCommandState('underline')?ub.classList.add('active'):ub.classList.remove('active');const sel=window.getSelection();if(sel.rangeCount>0){let n=sel.getRangeAt(0).startContainer;while(n&&n.nodeType!==1)n=n.parentNode;n&&n.tagName==='H1'?h1b.classList.add('active'):h1b.classList.remove('active');let ln=n,inList=false;while(ln&&ln!==document.getElementById('editor')){if(ln.tagName==='UL'||ln.tagName==='LI'){inList=true;break}ln=ln.parentNode}const ulb=document.getElementById('ulBtn');inList?ulb.classList.add('active'):ulb.classList.remove('active')}}
+function exportSelectedNotes(){const cbs=document.querySelectorAll('.toc input[type="checkbox"]:checked');if(cbs.length===0){alert('Sélectionnez au moins une note');return}const ids=Array.from(cbs).map(cb=>parseInt(cb.dataset.sectionId)),exp=sections.filter(s=>ids.includes(s.id)),json=JSON.stringify(exp,null,2),blob=new Blob([json],{type:'application/json'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=`notes-export-${new Date().toISOString().slice(0,10)}.json`;a.click();URL.revokeObjectURL(url)}
+function importNotes(e){const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=ev=>{try{const d=JSON.parse(ev.target.result);if(!Array.isArray(d)){alert('Format invalide');return}d.forEach(n=>{n.id=Date.now()+Math.random();sections.push(n)});updateTOC();saveData();alert(`${d.length} note(s) importée(s)`)}catch(err){alert('Erreur d\'import')}e.target.value=''};r.readAsText(f)}
     </script>
 </body>
 </html>
