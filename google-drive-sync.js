@@ -4,8 +4,8 @@
 // CONFIGURATION - À MODIFIER PAR L'UTILISATEUR
 const GOOGLE_CONFIG = {
     // Remplacer par votre propre Client ID obtenu depuis Google Cloud Console
-    CLIENT_ID: 'VOTRE_CLIENT_ID.apps.googleusercontent.com',
-    API_KEY: 'VOTRE_API_KEY',
+    CLIENT_ID: '672388563946-64esg1rpftprb0i0m79imol5o7a23iui.apps.googleusercontent.com',
+    API_KEY: 'AIzaSyADA0UkcUsQq5txXaemO-FaC9w1HMjUXa8',
     // Ne pas modifier ces valeurs
     DISCOVERY_DOC: 'https://www.googleapis.com/discovery/v1/apis/drive/v3/rest',
     SCOPES: 'https://www.googleapis.com/auth/drive.file'
@@ -15,6 +15,7 @@ let tokenClient;
 let gapiInited = false;
 let gisInited = false;
 let isSignedIn = false;
+let lastInitError = null;
 
 // Initialiser l'API Google
 async function initGoogleDrive() {
@@ -28,10 +29,12 @@ async function initGoogleDrive() {
         // Initialiser GIS (Google Identity Services)
         gisInit();
         
+        lastInitError = null;
         console.log('Google Drive API initialisée');
     } catch (error) {
         console.error('Erreur lors de l\'initialisation de Google Drive:', error);
-        showSyncStatus('❌ Erreur d\'initialisation', 'error');
+        lastInitError = error.message || String(error);
+        showSyncStatus('❌ Erreur: ' + lastInitError, 'error');
     }
 }
 
@@ -89,9 +92,32 @@ function gisInit() {
 
 // Connexion à Google Drive
 async function signInGoogleDrive() {
-    if (!gapiInited || !gisInited) {
-        alert('Google Drive n\'est pas encore initialisé. Veuillez réessayer dans quelques secondes.');
+    // Vérifier si les identifiants sont configurés
+    if (!GOOGLE_CONFIG.CLIENT_ID || !GOOGLE_CONFIG.API_KEY) {
+        alert('Veuillez d\'abord configurer vos identifiants Google Drive dans le fichier google-drive-sync.js');
         return;
+    }
+    
+    // Si l'initialisation n'est pas encore terminée, attendre
+    if (!gapiInited || !gisInited) {
+        showSyncStatus('⏳ Initialisation Google Drive...', 'loading');
+        
+        // Attendre jusqu'à 10 secondes maximum
+        let attempts = 0;
+        while ((!gapiInited || !gisInited) && attempts < 20) {
+            await new Promise(resolve => setTimeout(resolve, 500));
+            attempts++;
+        }
+        
+        // Si toujours pas initialisé, afficher une erreur détaillée
+        if (!gapiInited || !gisInited) {
+            const errorDetails = lastInitError || 'Timeout d\'initialisation';
+            alert('❌ Erreur d\'initialisation de Google Drive:\n\n' + errorDetails + '\n\nVérifiez :\n1. CLIENT_ID est correct (.apps.googleusercontent.com)\n2. API_KEY est correcte\n3. "Origines JavaScript autorisées" dans Google Cloud Console\n4. Connexion Internet');
+            showSyncStatus('❌ ' + errorDetails, 'error');
+            return;
+        }
+        
+        showSyncStatus('', 'info');
     }
     
     tokenClient.requestAccessToken({ prompt: 'consent' });
