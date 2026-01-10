@@ -29,11 +29,14 @@
         .sidebar-header h2 { font-size: 1.2rem; font-weight: 500; }
         .btn-close { background: none; border: none; color: white; font-size: 1.5rem; cursor: pointer; width: 35px; height: 35px; }
         .btn-new-section, .btn-export, .btn-import { background: #1a237e; color: white; border: none; padding: 12px; margin: 15px 15px 10px 15px; border-radius: 5px; cursor: pointer; font-size: 1rem; font-weight: 500; width: calc(100% - 30px); }
-        .btn-export, .btn-import { margin-top: 0; }
-        .btn-delete { background: #f44336; color: white; border: none; padding: 12px; margin: 0 15px 15px 15px; border-radius: 5px; cursor: pointer; font-size: 1rem; font-weight: 500; width: calc(100% - 30px); }
+        .btn-export, .btn-import { margin-top: 0; width: 42%; display: inline-flex; align-items: center; gap: 4px; padding: 6px 8px; font-size: 0.75rem; line-height: 1.2; }
+        .btn-export { margin-left: 15px; margin-right: 1%; }
+        .btn-import { margin-left: 1%; margin-right: 15px; }
+        .btn-icon { font-size: 1.5rem; display: block; flex-shrink: 0; }
+        .btn-delete { background: #d32f2f; color: white; border: none; padding: 12px; margin: 0 15px 15px 15px; border-radius: 5px; cursor: pointer; font-size: 1rem; font-weight: 500; width: calc(100% - 30px); }
         .google-drive-section { padding: 0 15px; }
         .btn-google-drive, .btn-sync, .btn-restore { color: white; border: none; padding: 12px; margin: 0 0 10px 0; border-radius: 5px; cursor: pointer; font-size: 1rem; font-weight: 500; width: 100%; }
-        .btn-google-drive { background: #4285f4; }
+        .btn-google-drive { background: #1565c0; width: 100%; }
         .btn-sync { background: #34a853; }
         .btn-sync:disabled, .btn-restore:disabled { background: #ccc; cursor: not-allowed; }
         .btn-restore { background: #fbbc04; color: #333; }
@@ -83,7 +86,7 @@
             <button class="btn-menu" id="toggleSidebar">☰</button>
             <div class="note-label-container">
                 <span class="note-label">Note:</span>
-                <span class="version-label">v0.7</span>
+                <span class="version-label">v0.9</span>
             </div>
             <input type="text" id="sectionTitle" class="section-title-header" placeholder="Titre">
             <span class="last-modified" id="lastModified"></span>
@@ -95,16 +98,13 @@
                 <button class="btn-close" id="closeSidebar">✕</button>
             </div>
             <button class="btn-new-section" id="newSectionBtn">+ Nouvelle note</button>
-            <button class="btn-export" id="exportBtn">📥 Exporter la sélection</button>
-            <button class="btn-import" id="importBtn">📤 Importer des notes</button>
-            <button class="btn-delete" id="deleteSectionBtn">🗑️ Supprimer la sélection</button>
+            <button class="btn-delete" id="deleteSectionBtn">🗑️ Supprimer notes cochées</button>
+            <button class="btn-export" id="exportBtn"><span class="btn-icon">📥</span><span>Exporter notes cochées</span></button>
+            <button class="btn-import" id="importBtn"><span class="btn-icon">📤</span><span>Importer notes</span></button>
             <hr style="margin: 15px 0; border: none; border-top: 1px solid #ddd;">
             <div class="google-drive-section">
-                <h3 style="font-size: 14px; margin: 10px 0; color: #666;">Google Drive</h3>
-                <button class="btn-google-drive" id="googleConfigBtn">⚙️ Configurer</button>
-                <button class="btn-google-drive" id="googleDriveSignInBtn">🔑 Se connecter</button>
-                <button class="btn-google-drive" id="googleDriveSignOutBtn" style="display:none;">🚪 Déconnexion</button>
-                <button class="btn-sync" id="googleDriveSyncBtn" disabled>☁️ Synchroniser</button>
+                <button class="btn-google-drive" id="googleConfigBtn">⚙️ Config & connexion Google</button>
+                <button class="btn-sync" id="googleDriveSyncBtn" disabled>☁️ Synchro Google Drive</button>
                 <button class="btn-restore" id="googleDriveRestoreBtn" disabled>📥 Restaurer</button>
                 <div id="syncStatus" class="sync-status"></div>
             </div>
